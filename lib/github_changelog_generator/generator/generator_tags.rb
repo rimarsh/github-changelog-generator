@@ -10,7 +10,7 @@ module GitHubChangelogGenerator
       all_tags      = @fetcher.get_all_tags
       included_tags = filter_excluded_tags(all_tags)
 
-      fetch_tags_dates(all_tags) # Creates a Hash @tag_times_hash
+      fetch_tags_dates(included_tags) # Creates a Hash @tag_times_hash
       @sorted_tags   = sort_tags_by_date(included_tags)
       @filtered_tags = get_filtered_tags(included_tags)
 

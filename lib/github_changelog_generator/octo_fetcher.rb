@@ -108,6 +108,7 @@ module GitHubChangelogGenerator
         page_i += PER_PAGE_NUMBER
         print_in_same_line("Fetching tags... #{page_i}/#{count_pages * PER_PAGE_NUMBER}")
         tags.concat(new_tags)
+        @options[:max_tags] && tags.length >= @options[:max_tags]
       end
       print_empty_line
 

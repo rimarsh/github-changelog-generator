@@ -68,7 +68,7 @@ module GitHubChangelogGenerator
 
     KNOWN_ARRAY_KEYS = %i[exclude_labels include_labels bug_labels
                           enhancement_labels issue_line_labels between_tags exclude_tags]
-    KNOWN_INTEGER_KEYS = [:max_issues]
+    KNOWN_INTEGER_KEYS = [:max_issues, :max_tags]
 
     def convert_value(value, option_name)
       if KNOWN_ARRAY_KEYS.include?(option_name)

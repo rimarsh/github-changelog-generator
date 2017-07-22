@@ -141,6 +141,9 @@ module GitHubChangelogGenerator
         opts.on("--since-tag  x", "Change log will start after specified tag") do |v|
           options[:since_tag] = v
         end
+        opts.on("--max-tags [NUMBER]", Integer, "Max number of tags to fetch from GitHub. Default is unlimited") do |max|
+          options[:max_tags] = max
+        end
         opts.on("--due-tag  x", "Change log will end before specified tag") do |v|
           options[:due_tag] = v
         end
@@ -212,6 +215,7 @@ module GitHubChangelogGenerator
         exclude_labels: %w[duplicate question invalid wontfix Duplicate Question Invalid Wontfix],
         issue_line_labels: [],
         max_issues: nil,
+        max_tags: nil,
         simple_list: false,
         ssl_ca_file: nil,
         verbose: true,

@@ -23,6 +23,7 @@ module GitHubChangelogGenerator
       exclude_labels
       exclude_tags
       exclude_tags_regex
+      max_tags
       filter_issues_by_milestone
       frontmatter
       future_release
