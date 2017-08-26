@@ -7,31 +7,48 @@ module GitHubChangelogGenerator
       detect_since_tag
       detect_due_tag
 
-      all_tags      = @fetcher.get_all_tags
-      included_tags = filter_excluded_tags(all_tags)
+      all_tags = @fetcher.get_all_tags
+      fetch_tags_dates(all_tags) # Creates a Hash @tag_times_hash
+      all_sorted_tags = sort_tags_by_date(all_tags)
 
-      fetch_tags_dates(included_tags) # Creates a Hash @tag_times_hash
-      @sorted_tags   = sort_tags_by_date(included_tags)
-      @filtered_tags = get_filtered_tags(included_tags)
+      @sorted_tags   = filter_excluded_tags(all_sorted_tags)
+      @filtered_tags = get_filtered_tags(@sorted_tags)
 
-      @tag_section_mapping = build_tag_section_mapping(@filtered_tags, sorted_tags)
+      # Because we need to properly create compare links, we need a sorted list
+      # of all filtered tags (including the excluded ones). We'll exclude those
+      # tags from section headers inside the mapping function.
+      section_tags = get_filtered_tags(all_sorted_tags)
+
+      @tag_section_mapping = build_tag_section_mapping(section_tags, @filtered_tags)
 
       @filtered_tags
     end
 
-    # @param [Array] filtered_tags are the tags that need a subsection output
-    # @param [Array] all_tags is the list of all tags ordered from newest -> oldest
+    # @param [Array] section_tags are the tags that need a subsection output
+    # @param [Array] filtered_tags is the list of filtered tags ordered from newest -> oldest
     # @return [Hash] key is the tag to output, value is an array of [Left Tag, Right Tag]
     # PRs to include in this section will be >= [Left Tag Date] and <= [Right Tag Date]
-    def build_tag_section_mapping(filtered_tags, all_tags)
+    # rubocop:disable Style/For - for allows us to be more concise
+    def build_tag_section_mapping(section_tags, filtered_tags)
       tag_mapping = {}
-      filtered_tags.each do |tag|
-        older_tag_idx = all_tags.index(tag) + 1
-        older_tag = all_tags[older_tag_idx]
+      for i in 0..(section_tags.length - 1)
+        tag = section_tags[i]
+
+        # Don't create section header for the "since" tag
+        next if @since_tag && tag["name"] == @since_tag
+
+        # Don't create a section header for the first tag in between_tags
+        next if options[:between_tags] && tag == section_tags.last
+
+        # Don't create a section header for excluded tags
+        next unless filtered_tags.include?(tag)
+
+        older_tag = section_tags[i + 1]
         tag_mapping[tag] = [older_tag, tag]
       end
       tag_mapping
     end
+    # rubocop:enable Style/For
 
     # Sort all tags by date, newest to oldest
     def sort_tags_by_date(tags)
@@ -113,7 +130,7 @@ module GitHubChangelogGenerator
         if all_tags.map { |t| t["name"] }.include? tag
           idx = all_tags.index { |t| t["name"] == tag }
           filtered_tags = if idx > 0
-                            all_tags[0..idx - 1]
+                            all_tags[0..idx]
                           else
                             []
                           end
@@ -160,18 +177,19 @@ module GitHubChangelogGenerator
 
     def apply_exclude_tags(all_tags)
       if options[:exclude_tags].is_a?(Regexp)
-        filter_tags_with_regex(all_tags, options[:exclude_tags])
+        filter_tags_with_regex(all_tags, options[:exclude_tags], "--exclude-tags")
       else
         filter_exact_tags(all_tags)
       end
     end
 
     def apply_exclude_tags_regex(all_tags)
-      filter_tags_with_regex(all_tags, Regexp.new(options[:exclude_tags_regex]))
+      regex = Regexp.new(options[:exclude_tags_regex])
+      filter_tags_with_regex(all_tags, regex, "--exclude-tags-regex")
     end
 
-    def filter_tags_with_regex(all_tags, regex)
-      warn_if_nonmatching_regex(all_tags)
+    def filter_tags_with_regex(all_tags, regex, regex_option_name)
+      warn_if_nonmatching_regex(all_tags, regex, regex_option_name)
       all_tags.reject { |tag| regex =~ tag["name"] }
     end
 
@@ -182,11 +200,10 @@ module GitHubChangelogGenerator
       all_tags.reject { |tag| options[:exclude_tags].include?(tag["name"]) }
     end
 
-    def warn_if_nonmatching_regex(all_tags)
-      unless all_tags.map { |t| t["name"] }.any? { |t| options[:exclude_tags] =~ t }
+    def warn_if_nonmatching_regex(all_tags, regex, regex_option_name)
+      unless all_tags.map { |t| t["name"] }.any? { |t| regex =~ t }
         Helper.log.warn "Warning: unable to reject any tag, using regex "\
-                        "#{options[:exclude_tags].inspect} in --exclude-tags "\
-                        "option."
+                        "#{regex.inspect} in #{regex_option_name} option."
       end
     end
 
